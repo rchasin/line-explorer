@@ -1,0 +1,245 @@
+<!--
+TODO: when searching nearby, start from current center and go outward so closer things show up first
+TODO: debug info boxes (wrong ones come up sometimes) + add more info to them
+TODO: list of places on the side, mouse-over => highlights marker on map
+TODO: debug the fact that places get added multiple times if they appear in multiple searches (use unique id of place in an assoc array?)
+TODO: visual "line" of the line, allowing you to select parts... probably should show up upon selection in the "of the ___" box so they hopefully select a subline before hitting enter/ok
+-->
+
+<html>
+<head>
+    <link rel="stylesheet" href="/static/index.css" type="text/css" />
+    <link rel="stylesheet" href="http://code.jquery.com/ui/1.9.0/themes/base/jquery-ui.css" />
+    <script src="http://code.jquery.com/jquery-1.8.2.js"></script>
+    <script src="http://code.jquery.com/ui/1.9.0/jquery-ui.js"></script>
+    <script src="/static/jquery.json-2.3.min.js"></script>
+    <!--<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>-->
+    <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?libraries=places&sensor=false"></script>
+
+    <script type="text/javascript">
+    var distanceUnits = ["blocks", "minutes", "miles", "kilometers", "feet"];
+    var toMilesFactors = { "blocks": 0.05, "minutes": 0.0666666667, "miles": 1.0, "kilometers": 1.666666667, "feet": 0.00018939393 };
+    var geoloc_lat = 0;
+    var geoloc_lng = 0;
+    var map;
+    var service;
+    var placesOnMap = [];
+    var markersOnMap = [];
+    var openInfoWindow;
+    
+    function toMiles(radius_str) {
+        var radiusarr = radius_str.split(" ");
+        var radius = parseFloat(radiusarr[0]);
+        var unit = radiusarr[1].toLowerCase();
+        console.log("Converted " + radius_str + " to " + (radius * toMilesFactors[unit]) + " miles");
+        return radius * toMilesFactors[unit];
+    }
+
+    function clearMarkers() {
+      for(var i=0; i<markersOnMap.length; i++) {
+        markersOnMap[i].setMap(null);
+      }
+      placesOnMap = [];
+      markersOnMap = [];
+    }
+
+    function displayPlaceList() {
+      console.log("displaying place list");
+      for(var i=0; i<placesOnMap.length; i++) {
+        $("#placelist").append(placesOnMap[i].name + "<br/>");
+      }
+    }
+
+    function getRoutesForAgency(agency) {
+        var routes = new Array();
+        $.getJSON('/routes/' + agency, function(data) {
+            routes = data;
+        });
+        $( "#line" ).autocomplete('option', 'source', function(req, responseFn) {
+            var re = $.ui.autocomplete.escapeRegex(req.term);
+            var matcher = new RegExp( "^" + re, "i" );
+            var a = $.grep( routes, function(item,index){
+                return matcher.test(item);
+            });
+            responseFn( a );
+        });
+    }
+
+    function displayStopsOnMap(stops, colorstr) {
+      var center_latlng = new google.maps.LatLng(geoloc_lat, geoloc_lng);
+      console.log("original center_latlng: " + center_latlng);
+      $.post('/closest_stop', {"stops": $.toJSON(stops), "lat": geoloc_lat, "lon": geoloc_lng}, function(data) {
+        data = $.evalJSON(data);
+        center_latlng = new google.maps.LatLng(data["lat"], data["lon"]);
+        console.log("received response from closest_stop: " + center_latlng);
+        var myOptions = {
+          center: center_latlng,
+          mapTypeControl: false,
+          navigationControlOptions: {style: google.maps.NavigationControlStyle.SMALL},
+          mapTypeId: google.maps.MapTypeId.ROADMAP
+        };
+        map.setOptions(myOptions);
+    
+        for(var i = 0; i < stops.length; i++) {
+	  var stop = stops[i];
+          var marker = new google.maps.Marker({
+            position: new google.maps.LatLng(stop["lat"], stop["lon"]), 
+            map: map, 
+            title: stop["stop_name"],
+            icon: "https://maps.gstatic.com/mapfiles/ms2/micons/" + colorstr + "-dot.png"
+          });
+          markersOnMap.push(marker);
+        }
+      });
+    }
+
+    function searchNearby(keyword, lat, lng, radius, colorstr) {
+      MILES_TO_METERS = 1609.34;
+      request = {"location": new google.maps.LatLng(lat, lng), "radius": radius * MILES_TO_METERS, "keyword": keyword};
+      service.nearbySearch(request, function(results, status) {
+        console.log(status);        
+	if(status == google.maps.places.PlacesServiceStatus.OK) {
+          for (var i = 0; i < results.length; i++) {
+            var place = results[i];
+            var marker = new google.maps.Marker({
+              position: place.geometry.location,
+              map: map,
+              title: place.name,
+              icon: "https://maps.gstatic.com/mapfiles/ms2/micons/" + colorstr + "-dot.png"
+            });
+            console.log(place.name);
+            console.log(place);
+            placesOnMap.push(place);
+            markersOnMap.push(marker);
+            var infoWindow = new google.maps.InfoWindow({
+              content: place.name + "<br>" + place.geometry.location
+            });
+            google.maps.event.addListener(marker, 'click', function() {
+              console.log(place);
+              if(openInfoWindow != null) { openInfoWindow.close(); }
+              openInfoWindow = infoWindow;
+              infoWindow.open(map,marker);
+            });
+          }
+        }
+      });
+    }
+
+    $(function() {
+	map = new google.maps.Map(document.getElementById("mapcanvas"), {});
+	map.setZoom(15);
+        google.maps.event.addListener(map, 'click', function() {
+          if(openInfoWindow != null) { openInfoWindow.close(); }
+          openInfoWindow = null;
+        });
+	service = service = new google.maps.places.PlacesService(map);
+        console.log(map);
+        console.log(service);
+        $("#agency_s").change(function() {
+            getRoutesForAgency($("#agency_s").val());
+        });
+
+        $( "#line" ).autocomplete({});
+        getRoutesForAgency($("#agency_s").val());
+
+        $( "#radius_t" ).autocomplete({source: function(req, responseFn) {
+              if (req.term.indexOf(" ") == -1) {
+                console.log("no spaces");
+                responseFn(new Array());
+              } else {
+                  console.log("spaces");
+                  var amt = req.term.split(" ")[0];
+                  var unit = req.term.split(" ")[1];
+                  var re = $.ui.autocomplete.escapeRegex(unit);
+                  var matcher = new RegExp( "^" + re, "i" );
+                  var a = $.grep( distanceUnits, function(item,index){
+                      return matcher.test(item);
+                  });
+                  responseFn( a.map(function(x) { return amt + " " + x; }) );
+              }
+          }});
+
+	// TODO: don't fire if we pressed enter because of the autocomplete menu
+        // TODO: close the autocomplete menu if we fire a search
+        $("input.search").keyup(function(e) {
+	  if(e.keyCode == 13) {
+            $("button#search").click();
+          }
+        });
+
+        $("button#search").click(function() {
+          clearMarkers();
+          map.setZoom(13);
+          var kw = $("#query").val();
+          var rad = toMiles($("#radius_t").val());
+	  // TODO: don't send these in the url (as discussed in the python code)
+	  $.getJSON('/min_stops/' + $("#agency_s").val() + '/' + $("#line").val() + '/' + toMiles($("#radius_t").val()) + '/' + geoloc_lat + '/' + geoloc_lng, function(data) {
+            displayStopsOnMap(data, "red");
+	    console.log("number of stops: " + data.length);
+            for(var i=0; i<data.length; i++) {
+              setTimeout(function(s) { //console.log("searching nearby stop " + s);
+  	      searchNearby(kw, s["lat"], s["lon"], rad, "purple"); }, data.length/13.0 * 200 * i, data[i]);
+            }
+            setTimeout(displayPlaceList, data.length/13.0 * 200 * data.length);
+          });
+        });
+
+        if (navigator.geolocation) {
+                console.log("really getting location...");
+                navigator.geolocation.getCurrentPosition(function(position) {
+                  geoloc_lat = position.coords.latitude;
+                  geoloc_lng = position.coords.longitude;
+                  console.log(position);
+		  displayStopsOnMap([{"lat": geoloc_lat, "lon": geoloc_lng, stop_name: "Your Location"}], "red");
+                }, function(msg) {
+                  console.log(msg);
+                }, {timeout:10000});
+        } else {
+                console.log("not supported");
+        }
+
+    });
+</script>
+</head>
+<body>
+<div class="agency">
+I use the
+<select id="agency_s">
+<option value="mbta">MBTA</option>
+<option value="sfmta">SFMTA</option>
+</select>
+</div>
+
+<div class="directions" style="display:table;">
+<div style="display:table-row;">
+<div style="display:table-cell;">I'm looking for </div>
+<div style="display:table-cell;"><input class="search" type="text" id="query" /></div>
+</div>
+<div style="display:table-row;">
+<div style="display:table-cell;">within </div>
+<div style="display:table-cell;"><input class="search" type="text" id="radius_t" /></div>
+</div>
+<div style="display:table-row;">
+<div style="display:table-cell;">of the </div>
+<div style="display:table-cell;"><input class="search" type="text" id="line" /></div>
+<div style="display:table-cell;"><button id="search">Go</button></div>
+</div>
+</div>
+
+<!--
+<div class="directions">
+<div>I'm looking for <input type="text" /></div>
+<div>within <input type="text" id="radius_t" /></div>
+<div>of the <input type="text" id="line"/></div>
+</div>
+<button id="search">Go</button>
+-->
+
+<div style="margin-left: 5%; display:table; width: 90%"><div style="display:table-row; width:90%">
+<div id="placelist" style="width: 30%; height: 500px; border: 1px solid black; display: table-cell;">
+</div>
+<div id="mapcanvas" style="width: 60%; height: 500px; display: table-cell;">
+</div>
+</div></div>
+</body>
+</html>
