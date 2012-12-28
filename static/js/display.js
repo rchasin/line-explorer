@@ -2,6 +2,7 @@ function clearMarkers() {
     for(var i=0; i<markersOnMap.length; i++) {
         markersOnMap[i].setMap(null);
     }
+    placesOnMapSet = {};
     placesOnMap = [];
     markersOnMap = [];
 }
@@ -12,15 +13,19 @@ function clearPlaceList() {
 
 function displayPlaceList() {
     console.log("displaying place list");    
-    for(hash in placesOnMap) {
-        $("#placelist").append(placesOnMap[hash].name + "<br/>");
+    for(var i=0; i<placesOnMap.length; i++) {
+        $("#placelist").append(placesOnMap[i].name + "<br/>");
     }
 }
 
 function displayStopsOnMap(stops, colorstr) {
     var center_latlng = new google.maps.LatLng(geoloc_lat, geoloc_lng);
     console.log("original center_latlng: " + center_latlng);
-    $.post('/closest_stop', {"stops": JSON.stringify(stops), "lat": geoloc_lat, "lon": geoloc_lng}, function(data) {
+    if(!(typeof map.getCenter() === "undefined")) {
+	console.log("current center_latlng: " + map.getCenter());
+	center_latlng = map.getCenter();
+    }
+    $.post('/closest_stop', {"stops": JSON.stringify(stops), "lat": center_latlng.lat(), "lon": center_latlng.lng()}, function(data) {
         data = JSON.parse(data);
         center_latlng = new google.maps.LatLng(data["lat"], data["lon"]);
         console.log("received response from closest_stop: " + center_latlng);

@@ -22,7 +22,7 @@ function searchNearby(keyword, lat, lng, radius, colorstr) {
 		var place = results[i];
 		var hash = hashPlace(place);
 		// If this place has already been added from another stop, skip it.
-		if (!(typeof placesOnMap[hash] === "undefined")) {
+		if (!(typeof placesOnMapSet[hash] === "undefined")) {
 		    continue;
 		}
 		var marker = new google.maps.Marker({
@@ -31,8 +31,10 @@ function searchNearby(keyword, lat, lng, radius, colorstr) {
 		    title: place.name,
 		    icon: colorDot(colorstr)
 		});
-		placesOnMap[hash] = place;
+		placesOnMapSet[hash] = place;
+		placesOnMap.push(place);
 		markersOnMap.push(marker);
+		$("#placelist").append(place.name + "<br/>");
 		// Give a local copy of marker to avoid closure problems
 		(function(mkr) {
 		    var infoWindow = new google.maps.InfoWindow({

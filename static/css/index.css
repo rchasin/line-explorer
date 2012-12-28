@@ -1,24 +1,10 @@
-div.agency, div.agency select {
-    font-family: Arial,sans-serif;
-    font-size: 24px;
+form#directions input {
+    font-size:24px;
+    height:30px;
+    width: 100%;
 }
 
-div.directions input, div.directions, button#search {
-    font-family: Arial,sans-serif;
-    font-size: 44px;
-}
-
-div.directions {
-    margin-left: 10%;
-    text-align: right;
-    padding-bottom: 10px;
-}
-
-div.directions div {
-    padding: 0px 10px;
-}
-
-input#search {
-    font-family: Arial,sans-serif;
-    font-size:32px;
+div.control-group, div.controls, label.control-label {
+    padding:0px;
+    margin:0px;
 }

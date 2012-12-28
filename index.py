@@ -39,6 +39,9 @@ def stops(agency, route, current_lat, current_lon):
 def min_stops(agency, route, radius, current_lat, current_lon):
     limited_stops = json.loads(stops(agency, route, current_lat, current_lon))
     ms = min_stops(limited_stops, radius)
+    # sort by distance from current_lat, current_lon
+    current_latlon = {"lat": current_lat, "lon": current_lon}
+    ms = sorted(ms, lambda s,t: 1 if stop_distance(s, current_latlon) > stop_distance(t, current_latlon) else -1)
     return json.dumps(ms)
 
 # INTERNAL Given a list of stops and a radius, returns a sublist consisting of the endpoints and of

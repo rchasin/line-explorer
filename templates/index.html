@@ -5,13 +5,17 @@ TODO: list of places on the side, mouse-over => highlights marker on map
 TODO: debug the fact that places get added multiple times if they appear in multiple searches (use unique id of place in an assoc array?)
 TODO: visual "line" of the line, allowing you to select parts... probably should show up upon selection in the "of the ___" box so they hopefully select a subline before hitting enter/ok
 -->
-
+<!DOCTYPE html>
 <html>
 <head>
-    <link rel="stylesheet" href="/static/css/index.css" type="text/css" />
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet" media="screen">
     <link rel="stylesheet" href="http://code.jquery.com/ui/1.9.0/themes/base/jquery-ui.css" />
+    <link rel="stylesheet" href="/static/css/index.css" type="text/css" />
+
     <script src="http://code.jquery.com/jquery-1.8.2.js"></script>
     <script src="http://code.jquery.com/ui/1.9.0/jquery-ui.js"></script>
+    <script src="/static/js/bootstrap.min.js"></script>
+
     <!--<script src="/static/js/jquery.json-2.3.min.js"></script>-->
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/display.js"></script>
@@ -25,9 +29,9 @@ TODO: visual "line" of the line, allowing you to select parts... probably should
     var map;
     var service;
     var placesOnMap = [];
+    var placesOnMapSet = {};
     var markersOnMap = [];
     var openInfoWindow;
-
 
     $(function() {
 	map = new google.maps.Map(document.getElementById("mapcanvas"), {});
@@ -65,28 +69,39 @@ TODO: visual "line" of the line, allowing you to select parts... probably should
 
 	// TODO: don't fire if we pressed enter because of the autocomplete menu
         // TODO: close the autocomplete menu if we fire a search
-        $("input.search").keyup(function(e) {
+        $("#directions input").keyup(function(e) {
 	  if(e.keyCode == 13) {
+            e.preventDefault();
             $("button#search").click();
+            return false;
           }
         });
 
-        $("button#search").click(function() {
+        $("button#search").click(function(e) {
+          e.preventDefault();
           clearMarkers();
           clearPlaceList();
-          map.setZoom(13);
+          map.setZoom(14);
           var kw = $("#query").val();
           var rad = toMiles($("#radius_t").val());
+          var line = $("#line").val();
+          // if first character of line is a number, only take up to the first space
+          if(/^\d$/.test(line.substring(0, 1))) {
+            var spacePos = line.indexOf(" ");
+            if(spacePos > -1) {
+              line = line.substring(0, spacePos);
+            }
+          }
 	  // TODO: don't send these in the url (as discussed in the python code)
-	  $.getJSON('/min_stops/' + $("#agency_s").val() + '/' + $("#line").val() + '/' + toMiles($("#radius_t").val()) + '/' + geoloc_lat + '/' + geoloc_lng, function(data) {
+	  $.getJSON('/min_stops/' + $("#agency_s").val() + '/' + line + '/' + toMiles($("#radius_t").val()) + '/' + map.getCenter().lat() + '/' + map.getCenter().lng(), function(data) {
             displayStopsOnMap(data, "red");
 	    console.log("number of stops: " + data.length);
             for(var i=0; i<data.length; i++) {
               setTimeout(function(s) { //console.log("searching nearby stop " + s);
   	      searchNearby(kw, s["lat"], s["lon"], rad, "purple"); }, data.length/13.0 * 200 * i, data[i]);
             }
-            setTimeout(displayPlaceList, data.length/13.0 * 200 * data.length);
           });
+          return false;
         });
 
         if (navigator.geolocation) {
@@ -101,50 +116,61 @@ TODO: visual "line" of the line, allowing you to select parts... probably should
                 }, {timeout:10000});
         } else {
                 console.log("not supported");
-        }
-
+        }	
     });
 </script>
 </head>
+
 <body>
-<div class="agency">
-I use the
-<select id="agency_s">
-<option value="mbta">MBTA</option>
-<option value="sfmta">SFMTA</option>
-</select>
+<div class="row-fluid">
+  <div class="offset1">
+    <h1>Line Explorer</h1>
+    <h3>Explore restaurants and businesses near public transit lines in your city.</h3>
+  </div>
 </div>
 
-<div class="directions" style="display:table;">
-<div style="display:table-row;">
-<div style="display:table-cell;">I'm looking for </div>
-<div style="display:table-cell;"><input class="search" type="text" id="query" /></div>
-</div>
-<div style="display:table-row;">
-<div style="display:table-cell;">within </div>
-<div style="display:table-cell;"><input class="search" type="text" id="radius_t" /></div>
-</div>
-<div style="display:table-row;">
-<div style="display:table-cell;">of the </div>
-<div style="display:table-cell;"><input class="search" type="text" id="line" /></div>
-<div style="display:table-cell;"><button id="search">Go</button></div>
-</div>
+<div class="row-fluid">
+  <div class="span3">
+    <form class="form-horizontal" id="directions">
+      <div class="control-group">
+	<label class="control-label span4" for="agency_s">I use the </label>
+	<div class="controls span8">
+	  <select id="agency_s">
+	    <option value="mbta">MBTA</option>
+	    <option value="sfmta">SFMTA</option>
+	  </select>
+	</div>
+      </div>
+      <div class="control-group">
+	<label class="control-label span4" for="query">I'm looking for </label>
+	<div class="controls span8">
+	  <input type="text" id="query" placeholder="korean restaurant" />
+	</div>
+      </div>
+      <div class="control-group">
+	<label class="control-label span4" for="radius_t">within </label>
+	<div class="controls span8">
+	  <input type="text" id="radius_t" placeholder="0.2 miles (default)" />
+	</div>
+      </div>
+      <div class="control-group">
+	<label class="control-label span4" for="line">of the </label>
+	<div class="controls span8">
+	  <input type="text" id="line" placeholder="1 (bus)" />
+	</div>
+      </div>
+      <div class="control-group">
+	<div class="controls span8 offset4">
+	  <button type="submit" class="btn btn-primary" id="search">Go</button>
+	</div>
+      </div>
+    </form>
+  </div>
+
+  <div class="span6" id="mapcanvas" style="height: 500px;"></div>
+
+  <div class="span3" id="placelist" style="height: 500px; border: 0px solid black"></div>
 </div>
 
-<!--
-<div class="directions">
-<div>I'm looking for <input type="text" /></div>
-<div>within <input type="text" id="radius_t" /></div>
-<div>of the <input type="text" id="line"/></div>
-</div>
-<button id="search">Go</button>
--->
-
-<div style="margin-left: 5%; display:table; width: 90%"><div style="display:table-row; width:90%">
-<div id="placelist" style="width: 30%; height: 500px; border: 1px solid black; display: table-cell;">
-</div>
-<div id="mapcanvas" style="width: 60%; height: 500px; display: table-cell;">
-</div>
-</div></div>
 </body>
 </html>

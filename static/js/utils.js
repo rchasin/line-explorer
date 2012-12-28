@@ -1,7 +1,11 @@
 var distanceUnits = ["blocks", "minutes", "miles", "kilometers", "feet"];
 var toMilesFactors = { "blocks": 0.05, "minutes": 0.0666666667, "miles": 1.0, "kilometers": 0.621371, "feet": 0.00018939393 };
+var RADIUS_DEFAULT = 0.2;
 
 function toMiles(radius_str) {
+    if(radius_str == "") {
+	return RADIUS_DEFAULT;
+    }
     var radiusarr = radius_str.split(" ");
     var radius = parseFloat(radiusarr[0]);
     var unit = radiusarr[1].toLowerCase();
