@@ -34,6 +34,7 @@ TODO: visual "line" of the line, allowing you to select parts... probably should
     var stopsToMarkers = {};
     var searchProgress = 0;
     var currentOpenInfoWindow;
+    var currentLine;
 
     $(function() {
 	map = new google.maps.Map(document.getElementById("mapcanvas"), {});
@@ -49,7 +50,15 @@ TODO: visual "line" of the line, allowing you to select parts... probably should
             getRoutesForAgency($("#agency_s").val());
         });
 
-        $( "#line" ).autocomplete({});
+        $( "#line" ).autocomplete({
+          select: function(event, ui) {
+            updateFromToStopMenus(ui.item.value);
+          }
+        });
+        $("#line").blur(function() {
+          updateFromToStopMenus($(this).val());
+        });
+
         getRoutesForAgency($("#agency_s").val());
 
         $( "#radius_t" ).autocomplete({source: function(req, responseFn) {
@@ -92,6 +101,8 @@ TODO: visual "line" of the line, allowing you to select parts... probably should
           var kw = $("#query").val();
           var rad = toMiles($("#radius_t").val());
           var line = $("#line").val();
+          var fromdi = $("#from_stop option:selected").val();
+          var todi = $("#to_stop option:selected").val();
           // if first character of line is a number, only take up to the first space
           if(/^\d$/.test(line.substring(0, 1))) {
             var spacePos = line.indexOf(" ");
@@ -100,14 +111,9 @@ TODO: visual "line" of the line, allowing you to select parts... probably should
             }
           }
 	  // TODO: don't send lat/lng in the url (as discussed in the python code)
-	  $.getJSON('/min_stops/' + $("#agency_s").val() + '/' + line + '/' + toMiles($("#radius_t").val()) + '/' + map.getCenter().lat() + '/' + map.getCenter().lng(), function(data) {
+	  $.getJSON('/min_stops/' + $("#agency_s").val() + '/' + line + '/' + toMiles($("#radius_t").val()) + '/' + map.getCenter().lat() + '/' + map.getCenter().lng() + '/' + $("#from_stop option:selected").val() + '/' + $("#to_stop option:selected").val(), function(data) {
             displayStopsOnMap(data, "red");
 	    console.log("number of stops: " + data.length);
-            /*
-            $.getJSON('/stops/' + $("#agency_s").val() + '/' + line + '/' + map.getCenter().lat() + '/' + map.getCenter().lng(), function(new_data) {
-              displayStopsOnRouteCanvas(new_data);
-            });
-            */
             for(var i=0; i<data.length; i++) {
               setTimeout(function(s, snum, nums) { //console.log("searching nearby stop " + s);
   	        searchNearby(kw, s["lat"], s["lon"], rad, "purple", snum, nums);
@@ -150,8 +156,9 @@ TODO: visual "line" of the line, allowing you to select parts... probably should
 	<form id="directions">
 	  <label for="agency_s">I live in / use the</label>
 	  <select id="agency_s">
+	    <!-- eventually replace this with templating to use "agencies" from the dict, a map from option values to region/agency titles (pairs) -->
 	    <option value="mbta">Boston / MBTA</option>
-	    <option value="sfmta">San Francisco / SFMTA</option>
+	    <option value="sf-muni">San Francisco / SFMTA</option>
 	  </select>
 	  <label for="query">I'm looking for </label>
 	  <input type="text" id="query" placeholder="korean restaurant" />
@@ -159,6 +166,12 @@ TODO: visual "line" of the line, allowing you to select parts... probably should
 	  <input type="text" id="radius_t" placeholder="0.2 miles (default)" />
 	  <label for="line">of the </label>
 	  <input type="text" id="line" placeholder="1 (bus), red line, M" />
+	  <label for="from_stop">from </label>
+	  <select id="from_stop">
+	  </select>
+	  <label for="to_stop">to </label>
+	  <select id="to_stop">
+	  </select>
 	  <button type="submit" class="btn btn-primary" id="search" data-loading-text="Searching...">Go</button>
 	</form>
 	<div class="progress" id="search_progress_outer" style="display: none;">

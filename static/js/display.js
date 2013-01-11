@@ -12,6 +12,25 @@ function clearPlaceList() {
     $("#placelist").text("");
 }
 
+function updateFromToStopMenus(line) {
+    if(line == currentLine) {
+	return;
+    }
+    currentLine = line;
+    $.getJSON('/stops/' + $("#agency_s").val() + '/' + line + '/' + map.getCenter().lat() + '/' + map.getCenter().lng(), function(new_data) {
+	console.log(new_data);
+	$("#from_stop > option").remove();
+	$("#to_stop > option").remove();
+	for(var i = 0; i < new_data.length; i++) {
+	    console.log(new_data[i]);
+	    $("#from_stop").append("<option value=\"" + new_data[i]["direction_index"] + "." + new_data[i]["direction"] + "\">" + new_data[i]["stop_name"] + "</option>");
+	    $("#to_stop").append("<option value=\"" + new_data[i]["direction_index"] + "." + new_data[i]["direction"] + "\">" + new_data[i]["stop_name"] + "</option>");
+	}
+	$("#from_stop").val($("#from_stop > option:first-child").val())
+	$("#to_stop").val($("#to_stop > option:last-child").val())
+    });
+}
+
 function openInfoWindowFromPlaceHash(hash) {
     openInfoWindow(placesOnMapSet[hash].info_window, placesOnMapSet[hash].marker);
 }

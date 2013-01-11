@@ -1,19 +1,27 @@
 from flask import Flask, request, render_template
 from geopy import Point
 from geopy import distance as geopydistance
-import sqlite3, json, sys
+import sqlite3, json, sys, urllib2
+from xml.dom.minidom import parseString
 
 app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    allowed_agencies = {}
+    agency_list_xml_file = urllib2.urlopen("http://webservices.nextbus.com/service/publicXMLFeed?command=agencyList")
+    agency_list_xml = agency_list_xml_file.read()
+    agency_list_xml_file.close()
+    agency_list_dom = parseString(agency_list_xml)
+    for agency_node in agency_list_dom.getElementsByTagName("agency"):
+        allowed_agencies[agency_node.getAttribute("tag")] = (agency_node.getAttribute("regionTitle"), agency_node.getAttribute("title"))
+    return render_template('index.html', agencies=allowed_agencies)
 
 def allstops(agency, route):
     sys.stderr.write("route: " + route + "\n")
     conn = connect_to_stops()
     c = conn.cursor()
-    c.execute('select * from ' + scrub(agency) + ' where route=?', [route])
+    c.execute('select * from `' + scrub(agency) + '` where route=?', [route])
     dl=[]
     for row in c:
         d = {}
@@ -33,22 +41,43 @@ def stops(agency, route, current_lat, current_lon):
         closest_stop_in_direction[direction] = closest_stop([s for s in stops if s['direction'] == direction], current_lat, current_lon)
     limited_stops = [s for s in stops if s['direction_index'] >= closest_stop_in_direction[s['direction']]['direction_index']]
     sorted_limited_stops = []
-    direction_index_start_zero = True
+    direction_index_start_zero = False
     for direction in directions: # badly defined for len(directions) > 2
         sorted_in_direction = sorted([s for s in limited_stops if s['direction'] == direction], lambda x,y: (1 if direction_index_start_zero else -1)*(x['direction_index'] - y['direction_index']))
         sorted_limited_stops += sorted_in_direction
-        direction_index_start_zero = False
+        direction_index_start_zero = True
+    sys.stderr.write(str(sorted_limited_stops) + "\n")
     return json.dumps(sorted_limited_stops)
 
-@app.route('/min_stops/<agency>/<route>/<radius>/<current_lat>/<current_lon>')
+# from_stop and to_stop are in the form: direction_index.direction
+@app.route('/min_stops/<agency>/<route>/<radius>/<current_lat>/<current_lon>/<from_stop>/<to_stop>')
 #@app.route('/min_stops', methods=['POST'])
-def min_stops(agency, route, radius, current_lat, current_lon):
+def min_stops(agency, route, radius, current_lat, current_lon, from_stop, to_stop):
     limited_stops = json.loads(stops(agency, route, current_lat, current_lon))
-    ms = min_stops(limited_stops, radius)
+    narrowed_limited_stops = stops_between(limited_stops, from_stop, to_stop)
+    sys.stderr.write("NLS: " + str(narrowed_limited_stops) + "\n")
+    ms = min_stops(narrowed_limited_stops, radius)
     # sort by distance from current_lat, current_lon
     current_latlon = {"lat": current_lat, "lon": current_lon}
     ms = sorted(ms, lambda s,t: 1 if stop_distance(s, current_latlon) > stop_distance(t, current_latlon) else -1)
     return json.dumps(ms)
+
+# INTERNAL Given a list of stops and two boundary stops (as
+# direction_index.direction), returns a sublist consisting of the
+# boundary stops and all stops between them.
+def stops_between(stops, b1, b2):
+    bdi1 = int(b1[:b1.find(".")])
+    bd1 = b1[b1.find(".") + 1:]
+    bdi2 = int(b2[:b2.find(".")])
+    bd2 = b2[b2.find(".") + 1:]
+    # Different directions means we must be considering ourselves
+    # between the stops already so they will be upper bounds on the
+    # stops we want
+    if bd1 != bd2:
+        return [s for s in stops if (s["direction"] == bd1 and s["direction_index"] <= bdi1) or (s["direction"] == bd2 and s["direction_index"] <= bdi2)]
+    # Same direction means we are off to one side of them so they will be monotonic
+    else:
+        return [s for s in stops if (s["direction"] == bd1 and s["direction_index"] >= min(bdi1, bdi2) and s["direction_index"] <= max(bdi1, bdi2))]
 
 # INTERNAL Given a list of stops and a radius, returns a sublist consisting of the endpoints and of
 # stops whose elements are at least radius apart if they are stops for the same direction.
@@ -109,7 +138,6 @@ def closest_stop():
     if 'stops' not in request.form or 'lat' not in request.form or 'lon' not in request.form:
         sys.stderr.write("stops or lat or lon not in the form: " + str(request.form) + "\n")
         return ""
-    sys.stderr.write("there are stops\n" + str(request.form)  + "\n")
     stops = json.loads(request.form['stops'])
     min_stop = closest_stop(stops, request.form['lat'], request.form['lon'])
     return json.dumps(min_stop)
@@ -139,7 +167,7 @@ def distance(p1, p2):
 def routes(agency):
     conn = connect_to_stops()
     c = conn.cursor()
-    c.execute('select distinct route from ' + scrub(agency))
+    c.execute('select distinct route from `' + scrub(agency) + '`')
     try:
         l = sorted([int(x[0]) for x in c])
     except ValueError:  # Some route is not an integer
@@ -148,9 +176,9 @@ def routes(agency):
 
 
 # Annoying hack to clean 'agency' because sqlite won't let you have variable table names
-# with ? in execute
+# with ? in execute. It would be best to check against the agency database but that's kind of a lot of work and this is just as safe and works just as well because right now those agencies have only alphanumeric chars and hyphens
 def scrub(table_name):
-    return ''.join(c for c in table_name if c.isalnum())        
+    return ''.join(c for c in table_name if c.isalnum() or c == '-')        
 
 def connect_to_stops():
     return sqlite3.connect("stops.db")
