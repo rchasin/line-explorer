@@ -1,5 +1,5 @@
-var distanceUnits = ["blocks", "minutes", "miles", "kilometers", "feet"];
-var toMilesFactors = { "blocks": 0.05, "minutes": 0.0666666667, "miles": 1.0, "kilometers": 0.621371, "feet": 0.00018939393 };
+var distanceUnits = ["miles", "kilometers", "blocks", "feet"];
+var toMilesFactors = { "blocks": 0.05, "block": 0.05, "miles": 1.0, "mi": 1.0, "mile": 1.0, "kilometers": 0.621371, "kilometer": 0.621371, "km": 0.621371, "feet": 0.00018939393, "foot": 0.00018939393 };
 var RADIUS_DEFAULT = 0.2;
 
 function toMiles(radius_str) {
@@ -18,5 +18,9 @@ function colorDot(colorstr) {
 }
 
 function hashPlace(place) {
-    return place.name + "#" + place.geometry.location;
+    return escape(encodeURIComponent(place.name + "#" + place.geometry.location));
+}
+
+function hashStop(stop) {
+    return escape(encodeURIComponent(stop.route + "#" + stop.tag));
 }

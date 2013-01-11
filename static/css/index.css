@@ -1,10 +1,25 @@
-form#directions input {
-    font-size:24px;
-    height:30px;
+h1 {
+    font-size: 44px;
+}
+
+form#directions input, form#directions select {
+    font-size: 20px;
+    height: 30px;
     width: 100%;
 }
 
-div.control-group, div.controls, label.control-label {
-    padding:0px;
-    margin:0px;
+div#mapcanvas img {
+    max-width: none;
+}
+
+div#body {
+    margin: 20px;
+}
+
+form#directions label {
+    font-size: 16px;
+}
+
+span.place_list_rating {
+    margin-left: 20px;
 }

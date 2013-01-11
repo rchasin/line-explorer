@@ -2,7 +2,7 @@
 TODO: when searching nearby, start from current center and go outward so closer things show up first
 TODO: add more info to info boxes
 TODO: list of places on the side, mouse-over => highlights marker on map
-TODO: debug the fact that places get added multiple times if they appear in multiple searches (use unique id of place in an assoc array?)
+TODO: debug order of /stops and the corresponding order in the left div list
 TODO: visual "line" of the line, allowing you to select parts... probably should show up upon selection in the "of the ___" box so they hopefully select a subline before hitting enter/ok
 -->
 <!DOCTYPE html>
@@ -31,14 +31,16 @@ TODO: visual "line" of the line, allowing you to select parts... probably should
     var placesOnMap = [];
     var placesOnMapSet = {};
     var markersOnMap = [];
-    var openInfoWindow;
+    var stopsToMarkers = {};
+    var searchProgress = 0;
+    var currentOpenInfoWindow;
 
     $(function() {
 	map = new google.maps.Map(document.getElementById("mapcanvas"), {});
 	map.setZoom(15);
         google.maps.event.addListener(map, 'click', function() {
-          if(openInfoWindow != null) { openInfoWindow.close(); }
-          openInfoWindow = null;
+          if(currentOpenInfoWindow != null) { currentOpenInfoWindow.close(); }
+          currentOpenInfoWindow = null;
         });
 	service = service = new google.maps.places.PlacesService(map);
         console.log(map);
@@ -79,6 +81,11 @@ TODO: visual "line" of the line, allowing you to select parts... probably should
 
         $("button#search").click(function(e) {
           e.preventDefault();
+          $("div#numresults").text("");
+          searchProgress = 0;
+          $("#search_progress").css("width", "0%");
+          $("button#search").button("loading");
+          $("#search_progress_outer").css("display", "block");
           clearMarkers();
           clearPlaceList();
           map.setZoom(14);
@@ -92,13 +99,19 @@ TODO: visual "line" of the line, allowing you to select parts... probably should
               line = line.substring(0, spacePos);
             }
           }
-	  // TODO: don't send these in the url (as discussed in the python code)
+	  // TODO: don't send lat/lng in the url (as discussed in the python code)
 	  $.getJSON('/min_stops/' + $("#agency_s").val() + '/' + line + '/' + toMiles($("#radius_t").val()) + '/' + map.getCenter().lat() + '/' + map.getCenter().lng(), function(data) {
             displayStopsOnMap(data, "red");
 	    console.log("number of stops: " + data.length);
+            /*
+            $.getJSON('/stops/' + $("#agency_s").val() + '/' + line + '/' + map.getCenter().lat() + '/' + map.getCenter().lng(), function(new_data) {
+              displayStopsOnRouteCanvas(new_data);
+            });
+            */
             for(var i=0; i<data.length; i++) {
-              setTimeout(function(s) { //console.log("searching nearby stop " + s);
-  	      searchNearby(kw, s["lat"], s["lon"], rad, "purple"); }, data.length/13.0 * 200 * i, data[i]);
+              setTimeout(function(s, snum, nums) { //console.log("searching nearby stop " + s);
+  	        searchNearby(kw, s["lat"], s["lon"], rad, "purple", snum, nums);
+              }, data.length/13.0 * 200 * i, data[i], i, data.length);
             }
           });
           return false;
@@ -122,54 +135,49 @@ TODO: visual "line" of the line, allowing you to select parts... probably should
 </head>
 
 <body>
-<div class="row-fluid">
-  <div class="offset1">
-    <h1>Line Explorer</h1>
-    <h3>Explore restaurants and businesses near public transit lines in your city.</h3>
-  </div>
-</div>
 
-<div class="row-fluid">
-  <div class="span3">
-    <form class="form-horizontal" id="directions">
-      <div class="control-group">
-	<label class="control-label span4" for="agency_s">I use the </label>
-	<div class="controls span8">
+<div id="body">
+  <div class="row-fluid">
+    <div class="offset1">
+      <h1>LineXplorer</h1>
+      <h3>Explore restaurants and businesses near public transit lines in your city.</h3>
+    </div>
+  </div>
+
+  <div class="row-fluid">
+    <div class="span3">
+      <div class="span11">
+	<form id="directions">
+	  <label for="agency_s">I live in / use the</label>
 	  <select id="agency_s">
-	    <option value="mbta">MBTA</option>
-	    <option value="sfmta">SFMTA</option>
+	    <option value="mbta">Boston / MBTA</option>
+	    <option value="sfmta">San Francisco / SFMTA</option>
 	  </select>
-	</div>
-      </div>
-      <div class="control-group">
-	<label class="control-label span4" for="query">I'm looking for </label>
-	<div class="controls span8">
+	  <label for="query">I'm looking for </label>
 	  <input type="text" id="query" placeholder="korean restaurant" />
-	</div>
-      </div>
-      <div class="control-group">
-	<label class="control-label span4" for="radius_t">within </label>
-	<div class="controls span8">
+	  <label for="radius_t">within </label>
 	  <input type="text" id="radius_t" placeholder="0.2 miles (default)" />
+	  <label for="line">of the </label>
+	  <input type="text" id="line" placeholder="1 (bus), red line, M" />
+	  <button type="submit" class="btn btn-primary" id="search" data-loading-text="Searching...">Go</button>
+	</form>
+	<div class="progress" id="search_progress_outer" style="display: none;">
+	  <div class="bar" id="search_progress" style="width: 0%;"></div>
 	</div>
+	<div id="numresults"></div>
       </div>
-      <div class="control-group">
-	<label class="control-label span4" for="line">of the </label>
-	<div class="controls span8">
-	  <input type="text" id="line" placeholder="1 (bus)" />
-	</div>
-      </div>
-      <div class="control-group">
-	<div class="controls span8 offset4">
-	  <button type="submit" class="btn btn-primary" id="search">Go</button>
-	</div>
-      </div>
-    </form>
+    </div>
+
+<!--
+    <div class="span2" id="lineCanvasDiv" style="font-size: 10px;">
+      <canvas id="lineCanvas" height="500px" width="180px" style="border: 1px solid #000"></canvas>
+    </div>
+-->
+
+    <div class="span6" id="mapcanvas" style="height: 500px;"></div>
+
+    <div class="span3" id="placelist" style="height: 500px; border: 0px solid #000"></div>
   </div>
-
-  <div class="span6" id="mapcanvas" style="height: 500px;"></div>
-
-  <div class="span3" id="placelist" style="height: 500px; border: 0px solid black"></div>
 </div>
 
 </body>

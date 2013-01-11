@@ -27,12 +27,18 @@ def allstops(agency, route):
 @app.route('/stops/<agency>/<route>/<current_lat>/<current_lon>')
 def stops(agency, route, current_lat, current_lon):
     stops = json.loads(allstops(agency, route))
-    directions = list(set([s['direction'] for s in stops]))
+    directions = sorted(list(set([s['direction'] for s in stops])))
     closest_stop_in_direction = {}
     for direction in directions:
         closest_stop_in_direction[direction] = closest_stop([s for s in stops if s['direction'] == direction], current_lat, current_lon)
     limited_stops = [s for s in stops if s['direction_index'] >= closest_stop_in_direction[s['direction']]['direction_index']]
-    return json.dumps(limited_stops)
+    sorted_limited_stops = []
+    direction_index_start_zero = True
+    for direction in directions: # badly defined for len(directions) > 2
+        sorted_in_direction = sorted([s for s in limited_stops if s['direction'] == direction], lambda x,y: (1 if direction_index_start_zero else -1)*(x['direction_index'] - y['direction_index']))
+        sorted_limited_stops += sorted_in_direction
+        direction_index_start_zero = False
+    return json.dumps(sorted_limited_stops)
 
 @app.route('/min_stops/<agency>/<route>/<radius>/<current_lat>/<current_lon>')
 #@app.route('/min_stops', methods=['POST'])
