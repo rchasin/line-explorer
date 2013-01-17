@@ -111,7 +111,7 @@ TODO: visual "line" of the line, allowing you to select parts... probably should
             }
           }
 	  // TODO: don't send lat/lng in the url (as discussed in the python code)
-	  $.getJSON('/min_stops/' + $("#agency_s").val() + '/' + line + '/' + toMiles($("#radius_t").val()) + '/' + map.getCenter().lat() + '/' + map.getCenter().lng() + '/' + $("#from_stop option:selected").val() + '/' + $("#to_stop option:selected").val(), function(data) {
+	  $.getJSON('/min_stops/' + encodeURIComponent($("#agency_s").val()) + '/' + encodeURIComponent(line) + '/' + encodeURIComponent(toMiles($("#radius_t").val())) + '/' + map.getCenter().lat() + '/' + map.getCenter().lng() + '/' + encodeURIComponent($("#from_stop option:selected").val()) + '/' + encodeURIComponent($("#to_stop option:selected").val()), function(data) {
             displayStopsOnMap(data, "red");
 	    console.log("number of stops: " + data.length);
             for(var i=0; i<data.length; i++) {

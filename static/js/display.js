@@ -17,7 +17,7 @@ function updateFromToStopMenus(line) {
 	return;
     }
     currentLine = line;
-    $.getJSON('/stops/' + $("#agency_s").val() + '/' + line + '/' + map.getCenter().lat() + '/' + map.getCenter().lng(), function(new_data) {
+    $.getJSON('/stops/' + encodeURIComponent($("#agency_s").val()) + '/' + encodeURIComponent(line) + '/' + map.getCenter().lat() + '/' + map.getCenter().lng(), function(new_data) {
 	console.log(new_data);
 	$("#from_stop > option").remove();
 	$("#to_stop > option").remove();

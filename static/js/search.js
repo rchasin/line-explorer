@@ -1,6 +1,6 @@
 function getRoutesForAgency(agency) {
     var routes = new Array();
-    $.getJSON('/routes/' + agency, function(data) {
+    $.getJSON('/routes/' + encodeURIComponent(agency), function(data) {
         routes = data;
     });
     $( "#line" ).autocomplete('option', 'source', function(req, responseFn) {
@@ -15,6 +15,7 @@ function getRoutesForAgency(agency) {
 
 function searchNearby(keyword, lat, lng, radius, colorstr, stop_num, num_stops) {
     request = {"location": new google.maps.LatLng(lat, lng), "radius": radius / toMilesFactors["kilometers"] * 1000, "keyword": keyword};
+    console.log("request radius: " + request.radius + ", original radius: " + radius);
     service.nearbySearch(request, function(results, status) {
         console.log(status);        
 	if(status == google.maps.places.PlacesServiceStatus.OK) {

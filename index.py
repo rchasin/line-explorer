@@ -32,7 +32,7 @@ def allstops(agency, route):
 
 # TODO: DO NOT pass lat and lon in the request URL, that is horrible for any semblance of privacy
 # (if we send them over POST, we could at least potentially encrypt them)
-@app.route('/stops/<agency>/<route>/<current_lat>/<current_lon>')
+@app.route('/stops/<agency>/<path:route>/<current_lat>/<current_lon>')
 def stops(agency, route, current_lat, current_lon):
     stops = json.loads(allstops(agency, route))
     directions = sorted(list(set([s['direction'] for s in stops])))
@@ -50,7 +50,7 @@ def stops(agency, route, current_lat, current_lon):
     return json.dumps(sorted_limited_stops)
 
 # from_stop and to_stop are in the form: direction_index.direction
-@app.route('/min_stops/<agency>/<route>/<radius>/<current_lat>/<current_lon>/<from_stop>/<to_stop>')
+@app.route('/min_stops/<agency>/<path:route>/<radius>/<current_lat>/<current_lon>/<from_stop>/<to_stop>')
 #@app.route('/min_stops', methods=['POST'])
 def min_stops(agency, route, radius, current_lat, current_lon, from_stop, to_stop):
     limited_stops = json.loads(stops(agency, route, current_lat, current_lon))
