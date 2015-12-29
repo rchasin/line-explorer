@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html ng-app="lineExplorerApp">
+  <head>
+    <META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>Explore your transit-accessible world</title>
+    <!-- scripts and styles -->
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap-theme.min.css">
+
+<!--
+    <script src="//code.jquery.com/jquery-2.1.1.min.js" type="text/javascript"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+    <script type="text/javascript">
+      // Angular complains if chrome's popup blocker is on
+      window.scrollTo = function() {};
+    </script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.26/angular.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.16/angular-resource.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.16/angular-route.js"></script>
+-->
+    <script src="/static/ext/bower_components/jquery/dist/jquery.js" type="text/javascript"></script>
+    <script src="/static/ext/bower_components/bootstrap/dist/js/bootstrap.js" type="text/javascript"></script>
+    <script src="/static/ext/bower_components/angular/angular.js" type="text/javascript"></script>
+    <script src="/static/ext/bower_components/angular-bootstrap/ui-bootstrap.js" type="text/javascript"></script>
+    <script src="/static/ext/bower_components/angular-resource/angular-resource.js" type="text/javascript"></script>
+    <script src="/static/ext/bower_components/angular-route/angular-route.js" type="text/javascript"></script>
+    <script src="/static/js/transit_services.js" type="text/javascript"></script>
+    <script src="/static/js/app.js" type="text/javascript"></script>
+  </head>
+  <body>
+
+    <div class="container-fluid">
+      <div ng-controller="SearchBoxCtrl">
+
+<!--
+	  <div class="input-group input-group-lg">
+	      <span class="input-group-addon" id="agency-addon">Transit agency</span>
+	      <input type="text" class="form-control" placeholder="e.g. MBTA (Boston), SF Muni (California Northern)" aria-describedby="agency-addon" uib-typeahead="a.id as a.name for a in agencies | filter:$viewValue" ng-model="agency">
+	  </div>
+	  <div class="input-group input-group-lg">
+	      <span class="input-group-addon" id="query-addon">I'm looking for</span>
+	      <input type="text" class="form-control" placeholder="e.g. korean food" aria-described-by="query-addon" ng-model="query">
+	  </div>
+-->
+
+      <form class="form-horizontal input-lg">
+	<div class="form-group">
+	  <label for="agency_s">Transit agency</label>
+	  <input type="text" placeholder="e.g. MBTA (Boston), SF Muni (California Northern)" uib-typeahead="a as a.name for a in agencies | filter:$viewValue" ng-model="agency" typeahead-on-select="updateLines()">
+	</div>
+
+	<div class="form-group">
+	  <label for="query_s">I'm looking for</label>
+	  <input type="text" id="query_s" placeholder="korean restaurant" ng-model="query">
+	</div>
+	<div class="form-group">
+	  <label for="radius_t">within </label>
+	  <input type="text" id="radius_t" placeholder="0.2 miles (default)" ng-model="radius">
+	</div>
+	<div class="form-group">
+	  <label for="line">of the </label>
+	  <input type="text" placeholder="e.g. 1, red line, M" uib-typeahead="ln as ln.name for ln in lines | filter:$viewValue" ng-model="line">
+	</div>
+	<div class="form-group">
+	  <label for="fromStop">from </label>
+	  <select id="fromStop" ng-model="fromStop" ng-options="stop.id as stop.name for stop in stops">
+	    <option value="">(select)</option>
+	  </select>
+	</div>
+	<div class="form-group">
+	  <label for="toStop">to </label>
+	  <select id="toStop" ng-model="fromStop" ng-options="stop.id as stop.name for stop in stops">
+	    <option value="">(select)</option>
+	  </select>
+	</div>
+	<button type="submit" class="btn btn-primary" id="search" data-loading-text="Searching...">Go</button>
+	<div class="progress" id="search_progress_outer" style="display: none;">
+	  <div class="bar" id="search_progress" style="width: 0%;"></div>
+	</div>
+	<div class="col-md-2" id="numresults"></div>
+      </form>
+    </div>
+  </body>
+</html>
