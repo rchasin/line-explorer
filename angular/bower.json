@@ -1,0 +1,27 @@
+{
+  "name": "line-explorer",
+  "homepage": "https://github.com/rchasin/line-explorer",
+  "authors": [
+    "Rachel Chasin <rchasin@alum.mit.edu>"
+  ],
+  "description": "",
+  "main": "",
+  "moduleType": [],
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "angular": "1.4.8",
+    "angular-bootstrap": "0.14.3",
+    "angular-resource": "1.4.8",
+    "angular-route": "1.4.8",
+    "bootstrap": "3.3.6",
+    "jquery": "2.1.4"
+  },
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
